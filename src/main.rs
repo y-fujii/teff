@@ -1,3 +1,4 @@
+// (c) Yasuhiro Fujii <http://mimosa-pudica.net>, under MIT License.
 use std::fmt::Write;
 use std::*;
 
@@ -114,12 +115,17 @@ fn count_triad_honor(hand: &mut TileSet) -> usize {
 }
 
 fn discard_tile(hand: &mut TileSet, wall: &mut TileSet, depth: usize) -> (f64, Vec<usize>) {
+    let count = count_pair_and_triad(hand);
+    if count == hand.count() || depth == 0 {
+        return (count as f64, Vec::new());
+    }
+
     let mut best_score = 0.0;
     let mut best_tile = Vec::new();
     for i in 0..34 {
         if hand.tile(i) > 0 {
             *hand.tile_mut(i) -= 1;
-            let score = draw_tile(hand, wall, depth);
+            let score = draw_tile(hand, wall, depth - 1);
             *hand.tile_mut(i) += 1;
             if score >= best_score {
                 if score > best_score {
@@ -134,18 +140,12 @@ fn discard_tile(hand: &mut TileSet, wall: &mut TileSet, depth: usize) -> (f64, V
 }
 
 fn draw_tile(hand: &mut TileSet, wall: &mut TileSet, depth: usize) -> f64 {
-    let n_tiles = 1 + hand.count();
     let mut sum = 0.0;
     for i in 0..34 {
         if wall.tile(i) > 0 {
             *wall.tile_mut(i) -= 1;
             *hand.tile_mut(i) += 1;
-            let count = count_pair_and_triad(hand);
-            let score = if count == n_tiles || depth == 0 {
-                count as f64
-            } else {
-                discard_tile(hand, wall, depth - 1).0
-            };
+            let (score, _) = discard_tile(hand, wall, depth);
             *hand.tile_mut(i) -= 1;
             *wall.tile_mut(i) += 1;
             sum += score * wall.tile(i) as f64;
@@ -241,14 +241,15 @@ fn main() {
             }
         };
 
-        println!("   Hand | {}", format_tile_set(&mut hand));
+        println!("Hand: {}", format_tile_set(&mut hand));
         let mut wall = TileSet::new();
         for i in 0..34 {
             *wall.tile_mut(i) = 4 - hand.tile(i);
         }
-        for i in 0..3 {
-            print!("Depth {} |", i);
-            for tile in discard_tile(&mut hand, &mut wall, i).1 {
+        for i in 0..4 {
+            let (score, tiles) = discard_tile(&mut hand, &mut wall, i);
+            print!("depth = {} | score = {:.2} |", i, score);
+            for tile in tiles {
                 print!(" {}", format_tile(tile));
             }
             println!();
