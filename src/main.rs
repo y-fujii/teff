@@ -132,9 +132,8 @@ fn discard_tile(hand: &mut TileSet, wall: &mut TileSet, depth: usize) -> (f64, V
     (best_score, discards)
 }
 
-fn playout(hand: &TileSet, wall: &TileSet, n_samples: usize) -> f64 {
+fn playout<R: rand::Rng>(hand: &TileSet, wall: &TileSet, n_samples: usize, rng: &mut R) -> f64 {
     let n_tiles = hand.count() + 1;
-    let mut rng = rand::thread_rng();
     let mut acc = Vec::new();
     for i in 0..34 {
         for _ in 0..wall.tile(i) {
@@ -143,27 +142,27 @@ fn playout(hand: &TileSet, wall: &TileSet, n_samples: usize) -> f64 {
     }
     let mut sum = 0;
     for _ in 0..n_samples {
+        // XXX
+        rand::seq::SliceRandom::shuffle(&mut acc[..], rng);
         let mut hand = hand.clone();
-        let mut acc = acc.clone();
-        for turn in 0.. {
+        for i in 0.. {
             let count = count_pair_and_triad(&mut hand);
             if count >= n_tiles && count % 3 == n_tiles % 3 {
-                sum += turn;
+                sum += i;
                 break;
             }
-            let tile = acc.remove(rand::Rng::gen_range(&mut rng, 0, acc.len()));
-            *hand.tile_mut(tile) += 1;
+            *hand.tile_mut(acc[i]) += 1;
         }
     }
     sum as f64 / n_samples as f64
 }
 
-fn discard_tile_by_mc(hand: &mut TileSet, wall: &TileSet, n_samples: usize) -> Vec<(usize, f64)> {
+fn discard_tile_by_mc<R: rand::Rng>(hand: &mut TileSet, wall: &TileSet, n_samples: usize, rng: &mut R) -> Vec<(usize, f64)> {
     let mut discards = Vec::new();
     for i in 0..34 {
         if hand.tile(i) > 0 {
             *hand.tile_mut(i) -= 1;
-            let score = playout(&hand, &wall, n_samples);
+            let score = playout(&hand, &wall, n_samples, rng);
             *hand.tile_mut(i) += 1;
             discards.push((i, score));
         }
@@ -264,16 +263,23 @@ fn parse_tile_set(text: &str) -> Option<TileSet> {
     Some(hand)
 }
 
-fn generate_random_hand() -> TileSet {
-    let mut rng = rand::thread_rng();
+fn generate_random_hand<R: rand::Rng>(rng: &mut R) -> TileSet {
+    let mut acc = Vec::new();
+    for i in 0..34 {
+        for _ in 0..4 {
+            acc.push(i);
+        }
+    }
+    rand::seq::SliceRandom::shuffle(&mut acc[..], rng);
+
     let mut hand = TileSet::new();
-    for _ in 0..14 {
-        *hand.tile_mut(rand::Rng::gen_range(&mut rng, 0, 34)) += 1;
+    for i in acc[0..14].iter() {
+        *hand.tile_mut(*i) += 1;
     }
     hand
 }
 
-fn analyze_hand(hand: &mut TileSet) {
+fn analyze_hand<R: rand::Rng>(hand: &mut TileSet, rng: &mut R) {
     println!("Hand: {}", format_tile_set(hand));
 
     let n_tiles = hand.count();
@@ -300,21 +306,22 @@ fn analyze_hand(hand: &mut TileSet) {
     }
 
     let n_samples = 65536;
-    let mut discards = discard_tile_by_mc(hand, &wall, n_samples);
+    let mut discards = discard_tile_by_mc(hand, &wall, n_samples, rng);
     discards.sort_by(|(_, s0), (_, s1)| s0.partial_cmp(s1).unwrap());
     println!("  mc playout, {} samples:", n_samples);
     for (tile, score) in discards.iter() {
-        println!("    {} {:>7.4}", format_tile(*tile), score);
+        println!("    {} {:>5.2}", format_tile(*tile), score);
     }
 
     println!();
 }
 
 fn main() {
+    let mut rng = rand::thread_rng();
     if env::args().len() <= 1 {
         loop {
-            let mut hand = generate_random_hand();
-            analyze_hand(&mut hand);
+            let mut hand = generate_random_hand(&mut rng);
+            analyze_hand(&mut hand, &mut rng);
         }
     } else {
         for arg in env::args().skip(1) {
@@ -326,7 +333,7 @@ fn main() {
                     continue;
                 }
             };
-            analyze_hand(&mut hand);
+            analyze_hand(&mut hand, &mut rng);
         }
     }
 }
