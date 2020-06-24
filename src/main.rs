@@ -147,7 +147,7 @@ fn playout(hand: &TileSet, wall: &TileSet, n_samples: usize) -> f64 {
         let mut acc = acc.clone();
         for turn in 0.. {
             let count = count_pair_and_triad(&mut hand);
-            if count >= n_tiles && count % 3 == 2 {
+            if count >= n_tiles && count % 3 == n_tiles % 3 {
                 sum += turn;
                 break;
             }
@@ -258,6 +258,9 @@ fn parse_tile_set(text: &str) -> Option<TileSet> {
             _ => return None,
         }
     }
+    if !nums.is_empty() {
+        return None;
+    }
     Some(hand)
 }
 
@@ -272,6 +275,12 @@ fn generate_random_hand() -> TileSet {
 
 fn analyze_hand(hand: &mut TileSet) {
     println!("Hand: {}", format_tile_set(hand));
+
+    let n_tiles = hand.count();
+    if n_tiles % 3 != 0 && n_tiles % 3 != 2 {
+        println!("  # of tiles must be 3n or 3n + 2.");
+        return;
+    }
 
     let mut wall = TileSet::new();
     for i in 0..34 {
