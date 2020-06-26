@@ -163,7 +163,7 @@ fn playout<R: rand::Rng>(hand: &TileSet, wall: &TileSet, n_samples: usize, rng: 
         for i in 0.. {
             *hand.tile_mut(acc[i]) += 1;
             let count = count_pair_and_triad(&mut hand);
-            if count >= n_tiles && count % 3 == n_tiles % 3 {
+            if count >= n_tiles && (n_tiles % 3 == 0 || count % 3 != 0) {
                 sum += i;
                 break;
             }
