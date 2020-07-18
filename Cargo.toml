@@ -12,3 +12,4 @@ incremental = false
 
 [dependencies]
 rand = "*"
+rayon = "*"
