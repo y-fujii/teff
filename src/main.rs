@@ -1,6 +1,7 @@
 // (c) Yasuhiro Fujii <http://mimosa-pudica.net>, under MIT License.
 use std::*;
-use teff::*;
+use teff::search::*;
+use teff::tile::*;
 
 fn analyze_hand(hand: &mut TileSet) {
     println!("Hand: {}", format_tile_set(hand));
