@@ -14,8 +14,6 @@ struct DrawNode {
     children: [Option<Box<DiscardNode>>; 34],
 }
 
-const UCB_FACTOR: f64 = 28.0;
-
 impl DiscardNode {
     fn new() -> Self {
         DiscardNode {
@@ -42,7 +40,7 @@ impl DiscardNode {
         let v = 1 + if self.count < n_tiles {
             playout(hand, wall, hand.count())
         } else {
-            let t = (UCB_FACTOR / f64::sqrt(2.0)) * f64::sqrt(f64::ln((self.count - n_tiles) as f64));
+            let t = f64::sqrt(2.0) * n_tiles as f64 * f64::sqrt(f64::ln((self.count - n_tiles) as f64));
             let mut min_tile = usize::MAX;
             let mut min_score = f64::INFINITY;
             for i in 0..34 {
