@@ -37,11 +37,7 @@ impl TileSet {
     }
 
     pub fn count(&self) -> usize {
-        let mut n = 0;
-        for i in 0..self.len() {
-            n += self.tile(i) as usize;
-        }
-        n
+        self.iter().map(|e| *e as usize).sum()
     }
 
     pub fn len(&self) -> usize {
@@ -145,4 +141,74 @@ pub fn generate_random_hand<R: rand::Rng>(rng: &mut R) -> TileSet {
         *hand.tile_mut(*i) += 1;
     }
     hand
+}
+
+const WEIGHT_PAIR: usize = 2;
+const WEIGHT_TRIAD: usize = 3;
+
+pub fn count_head_and_triad(hand: &mut TileSet, allow_headless: bool) -> usize {
+    let n_simples = [
+        count_triad_simple(hand, 0, 0),
+        count_triad_simple(hand, 1, 0),
+        count_triad_simple(hand, 2, 0),
+    ];
+    let n_honor = count_triad_honor(hand);
+
+    let mut n_total = if allow_headless {
+        n_simples[0] + n_simples[1] + n_simples[2] + n_honor
+    } else {
+        0
+    };
+    for t in 0..3 {
+        let n_others = n_simples[(t + 1) % 3] + n_simples[(t + 2) % 3] + n_honor + WEIGHT_PAIR;
+        for i in 0..9 {
+            if hand.simple(t, i) >= 2 {
+                *hand.simple_mut(t, i) -= 2;
+                n_total = cmp::max(n_total, count_triad_simple(hand, t, 0) + n_others);
+                *hand.simple_mut(t, i) += 2;
+            }
+        }
+    }
+
+    let n_others = n_simples[0] + n_simples[1] + n_simples[2] + WEIGHT_PAIR;
+    for i in 0..7 {
+        if hand.honor(i) >= 2 {
+            *hand.honor_mut(i) -= 2;
+            n_total = cmp::max(n_total, count_triad_honor(hand) + n_others);
+            *hand.honor_mut(i) += 2;
+        }
+    }
+
+    n_total
+}
+
+pub fn count_triad_simple(hand: &mut TileSet, t: usize, i0: usize) -> usize {
+    let mut n_total = 0;
+    for i in i0..7 {
+        if hand.simple(t, i + 0) > 0 && hand.simple(t, i + 1) > 0 && hand.simple(t, i + 2) > 0 {
+            *hand.simple_mut(t, i + 0) -= 1;
+            *hand.simple_mut(t, i + 1) -= 1;
+            *hand.simple_mut(t, i + 2) -= 1;
+            n_total = cmp::max(n_total, count_triad_simple(hand, t, i) + WEIGHT_TRIAD);
+            *hand.simple_mut(t, i + 0) += 1;
+            *hand.simple_mut(t, i + 1) += 1;
+            *hand.simple_mut(t, i + 2) += 1;
+        }
+    }
+    for i in i0..9 {
+        if hand.simple(t, i) >= 3 {
+            *hand.simple_mut(t, i) -= 3;
+            n_total = cmp::max(n_total, count_triad_simple(hand, t, i) + WEIGHT_TRIAD);
+            *hand.simple_mut(t, i) += 3;
+        }
+    }
+    n_total
+}
+
+pub fn count_triad_honor(hand: &TileSet) -> usize {
+    let mut n_total = 0;
+    for i in 0..7 {
+        n_total += WEIGHT_TRIAD * (hand.honor(i) as usize / 3);
+    }
+    n_total
 }

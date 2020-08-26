@@ -3,75 +3,9 @@ use crate::tile::*;
 use rayon::prelude::*;
 use std::*;
 
-const WEIGHT_PAIR: usize = 2;
-const WEIGHT_TRIAD: usize = 3;
-
-pub fn count_pair_and_triad(hand: &mut TileSet) -> usize {
-    let n_simples = [
-        count_triad_simple(hand, 0, 0),
-        count_triad_simple(hand, 1, 0),
-        count_triad_simple(hand, 2, 0),
-    ];
-    let n_honor = count_triad_honor(hand);
-
-    let mut n_total = n_simples[0] + n_simples[1] + n_simples[2] + n_honor;
-    for t in 0..3 {
-        let n_others = n_simples[(t + 1) % 3] + n_simples[(t + 2) % 3] + n_honor + WEIGHT_PAIR;
-        for i in 0..9 {
-            if hand.simple(t, i) >= 2 {
-                *hand.simple_mut(t, i) -= 2;
-                n_total = cmp::max(n_total, count_triad_simple(hand, t, 0) + n_others);
-                *hand.simple_mut(t, i) += 2;
-            }
-        }
-    }
-
-    let n_others = n_simples[0] + n_simples[1] + n_simples[2] + WEIGHT_PAIR;
-    for i in 0..7 {
-        if hand.honor(i) >= 2 {
-            *hand.honor_mut(i) -= 2;
-            n_total = cmp::max(n_total, count_triad_honor(hand) + n_others);
-            *hand.honor_mut(i) += 2;
-        }
-    }
-
-    n_total
-}
-
-pub fn count_triad_simple(hand: &mut TileSet, t: usize, i0: usize) -> usize {
-    let mut n_total = 0;
-    for i in i0..7 {
-        if hand.simple(t, i + 0) > 0 && hand.simple(t, i + 1) > 0 && hand.simple(t, i + 2) > 0 {
-            *hand.simple_mut(t, i + 0) -= 1;
-            *hand.simple_mut(t, i + 1) -= 1;
-            *hand.simple_mut(t, i + 2) -= 1;
-            n_total = cmp::max(n_total, count_triad_simple(hand, t, i) + WEIGHT_TRIAD);
-            *hand.simple_mut(t, i + 0) += 1;
-            *hand.simple_mut(t, i + 1) += 1;
-            *hand.simple_mut(t, i + 2) += 1;
-        }
-    }
-    for i in i0..9 {
-        if hand.simple(t, i) >= 3 {
-            *hand.simple_mut(t, i) -= 3;
-            n_total = cmp::max(n_total, count_triad_simple(hand, t, i) + WEIGHT_TRIAD);
-            *hand.simple_mut(t, i) += 3;
-        }
-    }
-    n_total
-}
-
-pub fn count_triad_honor(hand: &TileSet) -> usize {
-    let mut n_total = 0;
-    for i in 0..7 {
-        n_total += WEIGHT_TRIAD * (hand.honor(i) as usize / 3);
-    }
-    n_total
-}
-
 pub fn discard_tile(hand: &mut TileSet, wall: &mut TileSet, depth: usize) -> (f64, Vec<(usize, f64)>) {
     let n_tiles = hand.count();
-    let count = count_pair_and_triad(hand);
+    let count = count_head_and_triad(hand, true);
     if count == n_tiles || depth == 0 {
         return ((n_tiles - count) as f64, Vec::new());
     }
@@ -92,7 +26,7 @@ pub fn discard_tile(hand: &mut TileSet, wall: &mut TileSet, depth: usize) -> (f6
 
 pub fn discard_tile_parallel(hand: &mut TileSet, wall: &mut TileSet, depth: usize) -> (f64, Vec<(usize, f64)>) {
     let n_tiles = hand.count();
-    let count = count_pair_and_triad(hand);
+    let count = count_head_and_triad(hand, true);
     if count == n_tiles || depth == 0 {
         return ((n_tiles - count) as f64, Vec::new());
     }
@@ -145,8 +79,7 @@ pub fn playout<R: rand::Rng>(hand: &TileSet, wall: &TileSet, n_samples: usize, r
         let mut hand = hand.clone();
         for i in 0.. {
             *hand.tile_mut(acc[i]) += 1;
-            let count = count_pair_and_triad(&mut hand);
-            if count >= n_tiles && (n_tiles % 3 == 0 || count % 3 != 0) {
+            if count_head_and_triad(&mut hand, false) >= n_tiles {
                 sum += i;
                 break;
             }
@@ -162,7 +95,7 @@ pub fn discard_tile_by_playout<R: rand::Rng>(
     n_samples: usize,
     rng: &mut R,
 ) -> (f64, Vec<(usize, f64)>) {
-    let count = count_pair_and_triad(hand);
+    let count = count_head_and_triad(hand, false);
     if count == hand.count() {
         return (0.0, Vec::new());
     }
@@ -190,7 +123,7 @@ pub fn discard_tile_by_playout_parallel(
     depth: usize,
     n_samples: usize,
 ) -> (f64, Vec<(usize, f64)>) {
-    let count = count_pair_and_triad(hand);
+    let count = count_head_and_triad(hand, false);
     if count == hand.count() {
         return (0.0, Vec::new());
     }
