@@ -19,10 +19,7 @@ impl DiscardNode {
         DiscardNode {
             count: 0,
             value: 0,
-            children: [
-                None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None,
-                None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None,
-            ],
+            children: arr_macro::arr![None; 34],
         }
     }
 
@@ -38,7 +35,7 @@ impl DiscardNode {
         }
 
         let v = 1 + if self.count < n_tiles {
-            playout(hand, wall, hand.count())
+            playout(hand, wall, n_tiles)
         } else {
             let t = f64::sqrt(2.0) * n_tiles as f64 * f64::sqrt(f64::ln((self.count - n_tiles) as f64));
             let mut min_tile = usize::MAX;
@@ -73,10 +70,7 @@ impl DrawNode {
         DrawNode {
             count: 0,
             value: 0,
-            children: [
-                None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None,
-                None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None,
-            ],
+            children: arr_macro::arr![None; 34],
         }
     }
 

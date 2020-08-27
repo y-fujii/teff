@@ -11,5 +11,6 @@ codegen-units = 1
 incremental = false
 
 [dependencies]
+arr_macro = "*"
 rand = "*"
 rayon = "*"
