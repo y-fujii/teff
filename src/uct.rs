@@ -96,7 +96,7 @@ fn playout(hand: &mut TileSet, wall: &mut Vec<usize>, n_tiles: usize) -> usize {
     unreachable!();
 }
 
-pub fn evaluate<R: rand::Rng>(
+pub fn discard_tile<R: rand::Rng>(
     hand: &TileSet,
     wall: &TileSet,
     n_samples: usize,

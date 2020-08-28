@@ -59,7 +59,7 @@ pub fn format_tile(tile: usize) -> String {
     }
 }
 
-pub fn format_tile_set(hand: &mut TileSet) -> String {
+pub fn format_tile_set(hand: &TileSet) -> String {
     let mut buf = String::new();
     let mut is_empty = true;
 
@@ -125,22 +125,6 @@ pub fn parse_tile_set(text: &str) -> Option<TileSet> {
         return None;
     }
     Some(hand)
-}
-
-pub fn generate_random_hand<R: rand::Rng>(rng: &mut R) -> TileSet {
-    let mut acc = Vec::new();
-    for i in 0..34 {
-        for _ in 0..4 {
-            acc.push(i);
-        }
-    }
-    rand::seq::SliceRandom::shuffle(&mut acc[..], rng);
-
-    let mut hand = TileSet::new();
-    for i in acc[0..14].iter() {
-        *hand.tile_mut(*i) += 1;
-    }
-    hand
 }
 
 const WEIGHT_PAIR: usize = 2;
