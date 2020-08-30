@@ -3,6 +3,8 @@ use crate::tile::*;
 use rayon::prelude::*;
 use std::*;
 
+const TURN_BIAS: f64 = 0.5;
+
 pub fn draw_tile(hand: &mut TileSet, wall: &mut TileSet, depth: usize) -> f64 {
     let mut sum = 0.0;
     for i in 0..wall.len() {
@@ -30,7 +32,7 @@ pub fn discard_tile(hand: &mut TileSet, wall: &mut TileSet, depth: usize) -> (f6
     for i in 0..hand.len() {
         if hand.tile(i) > 0 {
             *hand.tile_mut(i) -= 1;
-            let score = draw_tile(hand, wall, depth - 1);
+            let score = draw_tile(hand, wall, depth - 1) + TURN_BIAS;
             *hand.tile_mut(i) += 1;
             discards.push((i, score));
             best_score = f64::min(best_score, score);
@@ -54,7 +56,7 @@ pub fn discard_tile_parallel(hand: &mut TileSet, wall: &mut TileSet, depth: usiz
             }
             let mut hand = hand.clone();
             *hand.tile_mut(i) -= 1;
-            let score = draw_tile(&mut hand, &mut wall.clone(), depth - 1);
+            let score = draw_tile(&mut hand, &mut wall.clone(), depth - 1) + TURN_BIAS;
             *hand.tile_mut(i) += 1;
             Some((i, score))
         })
