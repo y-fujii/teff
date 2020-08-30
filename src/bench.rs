@@ -55,33 +55,31 @@ pub fn analyze_hand(hand: &mut TileSet) {
 }
 
 pub fn benchmark<R: rand::Rng>(rng: &mut R) {
-    let discard_names = ["search", "playout", "uct"];
-    let discard_funcs: [&dyn Fn(&mut TileSet, &mut TileSet) -> usize; 3] = [
-        &|hand: &mut TileSet, wall: &mut TileSet| {
+    let discard_funcs: Vec<(_, &dyn Fn(&mut TileSet, &mut TileSet) -> usize)> = vec![
+        ("search", &|hand: &mut TileSet, wall: &mut TileSet| {
             let (_, discards) = search::discard_tile_parallel(hand, wall, 3);
             let (tile, _) = discards
                 .iter()
                 .min_by(|(_, s0), (_, s1)| s0.partial_cmp(s1).unwrap())
                 .unwrap();
             *tile
-        },
-        &|hand: &mut TileSet, wall: &mut TileSet| {
+        }),
+        ("playout", &|hand: &mut TileSet, wall: &mut TileSet| {
             let (_, discards) = playout::discard_tile_parallel(hand, wall, 1, 1 << 21);
             let (tile, _) = discards
                 .iter()
                 .min_by(|(_, s0), (_, s1)| s0.partial_cmp(s1).unwrap())
                 .unwrap();
             *tile
-        },
-        &|hand: &mut TileSet, wall: &mut TileSet| {
+        }),
+        ("uct", &|hand: &mut TileSet, wall: &mut TileSet| {
             let discards = uct::discard_tile(&hand, &wall, 1 << 19, &mut rand::thread_rng());
             let (tile, _, _) = discards.iter().max_by_key(|(_, s, _)| s).unwrap();
             *tile
-        },
+        }),
     ];
 
-    let mut sum_l1 = vec![0; discard_funcs.len()];
-    let mut sum_l2 = vec![0; discard_funcs.len()];
+    let mut sums = vec![(0u64, 0u64); discard_funcs.len()];
     for n_samples in 1.. {
         let mut acc = Vec::new();
         for i in 0..34 {
@@ -101,7 +99,7 @@ pub fn benchmark<R: rand::Rng>(rng: &mut R) {
             *wall.tile_mut(*i) += 1;
         }
 
-        for (i, discard) in discard_funcs.iter().enumerate() {
+        for (i, (_, discard)) in discard_funcs.iter().enumerate() {
             let mut acc = acc.clone();
             let mut hand = hand.clone();
             let mut wall = wall.clone();
@@ -126,15 +124,24 @@ pub fn benchmark<R: rand::Rng>(rng: &mut R) {
 
                 n_turns += 1;
             }
-            sum_l1[i] += n_turns;
-            sum_l2[i] += n_turns * n_turns;
+            sums[i].0 += n_turns;
+            sums[i].1 += n_turns * n_turns;
         }
 
         println!("N = {}", n_samples);
-        for (i, name) in discard_names.iter().enumerate() {
-            let mu = sum_l1[i] as f64 / n_samples as f64;
-            let s2 = (n_samples * sum_l2[i] - sum_l1[i] * sum_l1[i]) as f64 / (n_samples * (n_samples - 1)) as f64;
-            println!("{:>7}: μ = {:>6.3}, σ = {:>6.3}", name, mu, f64::sqrt(s2));
+        for (i, (name, _)) in discard_funcs.iter().enumerate() {
+            let mu = sums[i].0 as f64 / n_samples as f64;
+            print!("{:>7}: μ = {:>6.3}", name, mu);
+            let ns = (n_samples as u128 * sums[i].1 as u128 - sums[i].0 as u128 * sums[i].0 as u128) as f64;
+            if n_samples > 3 {
+                let tv = f64::sqrt(ns / (n_samples as f64 * n_samples as f64 * (n_samples - 3) as f64));
+                print!(" ± {:>6.3}", tv);
+            }
+            if n_samples > 1 {
+                let uv = f64::sqrt(ns / (n_samples as f64 * (n_samples - 1) as f64));
+                print!(", σ = {:>6.3}", uv);
+            }
+            println!();
         }
         println!();
     }
